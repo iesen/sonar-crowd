@@ -17,28 +17,22 @@
  * License along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02
  */
-
 package org.sonar.plugins.crowd;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableList.Builder;
-import org.sonar.api.Extension;
-import org.sonar.api.SonarPlugin;
-
-import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.sonar.api.Plugin;
 
 /**
  * @author Evgeny Mandrikov
  */
-public class CrowdPlugin extends SonarPlugin {
+public class CrowdPlugin implements Plugin {
 
-  @Override
-  public List<Class<? extends Extension>> getExtensions() {
-    Builder<Class<? extends Extension>> builder = ImmutableList.builder();
+    private static Logger logger = LoggerFactory.getLogger(CrowdPlugin.class);
 
-    builder.add(CrowdRealm.class);
-    builder.add(CrowdConfiguration.class);
-
-    return builder.build();
-  }
+    @Override
+    public void define(Context context) {
+        context.addExtensions(CrowdRealm.class, CrowdConfiguration.class);
+        logger.info("Plugin added to context");
+    }
 }

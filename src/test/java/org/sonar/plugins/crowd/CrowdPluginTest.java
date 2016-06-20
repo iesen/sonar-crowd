@@ -20,25 +20,29 @@
 
 package org.sonar.plugins.crowd;
 
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-
-import static org.hamcrest.Matchers.is;
-import static org.junit.Assert.assertThat;
+import org.sonar.api.Plugin;
+import org.sonar.api.utils.Version;
 
 /**
  * @author Evgeny Mandrikov
  */
 public class CrowdPluginTest {
-  private CrowdPlugin plugin;
+    private CrowdPlugin plugin;
 
-  @Before
-  public void setUp() throws Exception {
-    plugin = new CrowdPlugin();
-  }
+    @Before
+    public void setUp() throws Exception {
+        plugin = new CrowdPlugin();
+    }
 
-  @Test
-  public void test() {
-    assertThat(plugin.getExtensions().size(), is(2));
-  }
+    @Test
+    public void test() {
+        Plugin.Context context = new Plugin.Context(Version.create(5, 6));
+        plugin.define(context);
+        Assert.assertEquals(2, context.getExtensions().size());
+    }
+
+
 }

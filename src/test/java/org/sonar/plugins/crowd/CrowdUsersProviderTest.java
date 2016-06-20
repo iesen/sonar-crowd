@@ -25,8 +25,10 @@ import com.atlassian.crowd.exception.UserNotFoundException;
 import com.atlassian.crowd.model.user.User;
 import com.atlassian.crowd.service.client.CrowdClient;
 import org.junit.Test;
+import org.sonar.api.security.ExternalUsersProvider;
 import org.sonar.api.security.UserDetails;
-import org.sonar.api.utils.SonarException;
+
+import javax.servlet.http.HttpServletRequest;
 
 import static org.hamcrest.Matchers.*;
 import static org.junit.Assert.assertThat;
@@ -36,34 +38,37 @@ import static org.mockito.Mockito.when;
 
 public class CrowdUsersProviderTest {
 
-  @Test
-  public void returnsNullIfTheUserWasNotFound() throws Exception {
-    CrowdClient client = mock(CrowdClient.class);
-    when(client.getUser(anyString())).thenThrow(new UserNotFoundException(""));
+    @Test
+    public void returnsNullIfTheUserWasNotFound() throws Exception {
+        CrowdClient client = mock(CrowdClient.class);
+        when(client.getUser(anyString())).thenThrow(new UserNotFoundException(""));
+        ExternalUsersProvider.Context context = new ExternalUsersProvider.Context("user", mock(HttpServletRequest.class));
 
-    CrowdUsersProvider provider = new CrowdUsersProvider(client);
-    assertThat(provider.doGetUserDetails("user"), is(nullValue()));
-  }
+        CrowdUsersProvider provider = new CrowdUsersProvider(client);
+        assertThat(provider.doGetUserDetails(context), is(nullValue()));
+    }
 
-  @Test
-  public void returnsTheCrowdDisplayNameAndEmailAddress() throws Exception {
-    CrowdClient client = mock(CrowdClient.class);
-    User user = mock(User.class);
-    when(user.getDisplayName()).thenReturn("display name");
-    when(user.getEmailAddress()).thenReturn("foo@acme.corp");
-    when(client.getUser(anyString())).thenReturn(user);
+    @Test
+    public void returnsTheCrowdDisplayNameAndEmailAddress() throws Exception {
+        CrowdClient client = mock(CrowdClient.class);
+        User user = mock(User.class);
+        when(user.getDisplayName()).thenReturn("display name");
+        when(user.getEmailAddress()).thenReturn("foo@acme.corp");
+        when(client.getUser(anyString())).thenReturn(user);
+        ExternalUsersProvider.Context context = new ExternalUsersProvider.Context("user", mock(HttpServletRequest.class));
+        CrowdUsersProvider provider = new CrowdUsersProvider(client);
 
-    CrowdUsersProvider provider = new CrowdUsersProvider(client);
-    UserDetails userDetails = provider.doGetUserDetails("user");
-    assertThat(userDetails, is(notNullValue()));
-    assertThat(userDetails.getEmail(), is("foo@acme.corp"));
-    assertThat(userDetails.getName(), is("display name"));
-  }
+        UserDetails userDetails = provider.doGetUserDetails(context);
+        assertThat(userDetails, is(notNullValue()));
+        assertThat(userDetails.getEmail(), is("foo@acme.corp"));
+        assertThat(userDetails.getName(), is("display name"));
+    }
 
-  @Test(expected = SonarException.class)
-  public void throwsSonarExceptionIfCrowdCommunicationFails() throws Exception {
-    CrowdClient client = mock(CrowdClient.class);
-    when(client.getUser(anyString())).thenThrow(new OperationFailedException(""));
-    new CrowdUsersProvider(client).doGetUserDetails("user");
-  }
+    @Test(expected = IllegalStateException.class)
+    public void throwsSonarExceptionIfCrowdCommunicationFails() throws Exception {
+        CrowdClient client = mock(CrowdClient.class);
+        when(client.getUser(anyString())).thenThrow(new OperationFailedException(""));
+        ExternalUsersProvider.Context context = new ExternalUsersProvider.Context("user", mock(HttpServletRequest.class));
+        new CrowdUsersProvider(client).doGetUserDetails(context);
+    }
 }

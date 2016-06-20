@@ -27,8 +27,9 @@ import com.atlassian.crowd.service.client.CrowdClient;
 import com.google.common.collect.ImmutableList.Builder;
 import com.google.common.collect.Lists;
 import org.junit.Test;
-import org.sonar.api.utils.SonarException;
+import org.sonar.api.security.ExternalGroupsProvider;
 
+import javax.servlet.http.HttpServletRequest;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -42,70 +43,72 @@ import static org.mockito.Mockito.*;
 
 public class CrowdGroupsProviderTest {
 
-  @Test
-  public void returnsNullIfTheUserWasNotFound() throws Exception {
-    CrowdClient client = mock(CrowdClient.class);
-    when(client.getGroupsForNestedUser(anyString(), anyInt(), anyInt())).thenThrow(
-      new UserNotFoundException(""));
-    assertThat(new CrowdGroupsProvider(client).doGetGroups("user"), is(nullValue()));
-  }
-
-  @Test(expected = SonarException.class)
-  public void throwsSonarExceptionIfCommunicationWithCrowdFails() throws Exception {
-    CrowdClient client = mock(CrowdClient.class);
-    when(client.getGroupsForNestedUser(anyString(), anyInt(), anyInt())).thenThrow(
-      new OperationFailedException(""));
-    new CrowdGroupsProvider(client).doGetGroups("user");
-  }
-
-  private List<Group> makeGroups(int count, int offset) {
-    Builder<Group> builder = new Builder<Group>();
-    for (int i = 0; i < count; i++) {
-      Group group = mock(Group.class);
-      when(group.getName()).thenReturn("group" + (offset + i));
-      builder.add(group);
+    @Test
+    public void returnsNullIfTheUserWasNotFound() throws Exception {
+        CrowdClient client = mock(CrowdClient.class);
+        when(client.getGroupsForNestedUser(anyString(), anyInt(), anyInt())).thenThrow(
+                new UserNotFoundException(""));
+        assertThat(new CrowdGroupsProvider(client).doGetGroups("user"), is(nullValue()));
     }
-    return builder.build();
-  }
 
-  private List<Group> makeGroups(int count) {
-    return makeGroups(count, 0);
-  }
-
-  @Test
-  public void returnsGroups() throws Exception {
-    CrowdClient client = mock(CrowdClient.class);
-
-    List<Group> groups = makeGroups(10);
-    when(client.getGroupsForNestedUser(anyString(), anyInt(), anyInt())).thenReturn(groups);
-
-    List<String> resolvedGroups =
-      Lists.newLinkedList(new CrowdGroupsProvider(client).doGetGroups("user"));
-    assertThat(resolvedGroups.size(), is(groups.size()));
-    for (int i = 0; i < groups.size(); i++) {
-      assertThat(resolvedGroups.get(i), is(groups.get(i).getName()));
+    @Test(expected = IllegalStateException.class)
+    public void throwsSonarExceptionIfCommunicationWithCrowdFails() throws Exception {
+        CrowdClient client = mock(CrowdClient.class);
+        when(client.getGroupsForNestedUser(anyString(), anyInt(), anyInt())).thenThrow(
+                new OperationFailedException(""));
+        ExternalGroupsProvider.Context context = new ExternalGroupsProvider.Context("user", mock(HttpServletRequest.class));
+        new CrowdGroupsProvider(client).doGetGroups(context);
     }
-    verify(client, times(1)).getGroupsForNestedUser(anyString(), anyInt(), anyInt());
-  }
 
-  @Test
-  public void performsPagination() throws Exception {
-    CrowdClient client = mock(CrowdClient.class);
-
-    List<Group> firstGroups = makeGroups(100);
-    List<Group> secondGroups = makeGroups(25, 100);
-    List<Group> allGroups = new LinkedList<Group>();
-    allGroups.addAll(firstGroups);
-    allGroups.addAll(secondGroups);
-    when(client.getGroupsForNestedUser(anyString(), eq(0), anyInt())).thenReturn(firstGroups);
-    when(client.getGroupsForNestedUser(anyString(), eq(100), anyInt())).thenReturn(secondGroups);
-
-    List<String> resolvedGroups =
-      Lists.newLinkedList(new CrowdGroupsProvider(client).doGetGroups("user"));
-    assertThat(resolvedGroups.size(), is(125));
-    for (int i = 0; i < resolvedGroups.size(); i++) {
-      assertThat(resolvedGroups.get(i), is(allGroups.get(i).getName()));
+    private List<Group> makeGroups(int count, int offset) {
+        Builder<Group> builder = new Builder<Group>();
+        for (int i = 0; i < count; i++) {
+            Group group = mock(Group.class);
+            when(group.getName()).thenReturn("group" + (offset + i));
+            builder.add(group);
+        }
+        return builder.build();
     }
-    verify(client, times(2)).getGroupsForNestedUser(anyString(), anyInt(), anyInt());
-  }
+
+    private List<Group> makeGroups(int count) {
+        return makeGroups(count, 0);
+    }
+
+    @Test
+    public void returnsGroups() throws Exception {
+        CrowdClient client = mock(CrowdClient.class);
+
+        List<Group> groups = makeGroups(10);
+        when(client.getGroupsForNestedUser(anyString(), anyInt(), anyInt())).thenReturn(groups);
+        ExternalGroupsProvider.Context context = new ExternalGroupsProvider.Context("user", mock(HttpServletRequest.class));
+        List<String> resolvedGroups =
+                Lists.newLinkedList(new CrowdGroupsProvider(client).doGetGroups(context));
+        assertThat(resolvedGroups.size(), is(groups.size()));
+        for (int i = 0; i < groups.size(); i++) {
+            assertThat(resolvedGroups.get(i), is(groups.get(i).getName()));
+        }
+        verify(client, times(1)).getGroupsForNestedUser(anyString(), anyInt(), anyInt());
+    }
+
+    @Test
+    public void performsPagination() throws Exception {
+        CrowdClient client = mock(CrowdClient.class);
+
+        List<Group> firstGroups = makeGroups(100);
+        List<Group> secondGroups = makeGroups(25, 100);
+        List<Group> allGroups = new LinkedList<Group>();
+        allGroups.addAll(firstGroups);
+        allGroups.addAll(secondGroups);
+        when(client.getGroupsForNestedUser(anyString(), eq(0), anyInt())).thenReturn(firstGroups);
+        when(client.getGroupsForNestedUser(anyString(), eq(100), anyInt())).thenReturn(secondGroups);
+        ExternalGroupsProvider.Context context = new ExternalGroupsProvider.Context("user", mock(HttpServletRequest.class));
+
+        List<String> resolvedGroups =
+                Lists.newLinkedList(new CrowdGroupsProvider(client).doGetGroups(context));
+        assertThat(resolvedGroups.size(), is(125));
+        for (int i = 0; i < resolvedGroups.size(); i++) {
+            assertThat(resolvedGroups.get(i), is(allGroups.get(i).getName()));
+        }
+        verify(client, times(2)).getGroupsForNestedUser(anyString(), anyInt(), anyInt());
+    }
 }

@@ -25,6 +25,9 @@ import com.atlassian.crowd.exception.UserNotFoundException;
 import com.atlassian.crowd.model.user.User;
 import com.atlassian.crowd.service.client.CrowdClient;
 import org.junit.Test;
+import org.sonar.api.security.Authenticator;
+
+import javax.servlet.http.HttpServletRequest;
 
 import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertThat;
@@ -35,27 +38,30 @@ import static org.mockito.Mockito.when;
 
 public class CrowdAuthenticatorTest {
 
-  @Test
-  public void authenticatorReturnsTrueForSuccessfulLogin() throws Exception {
-    CrowdClient client = mock(CrowdClient.class);
-    User user = mock(User.class);
-    CrowdAuthenticator authenticator = new CrowdAuthenticator(client);
+    @Test
+    public void authenticatorReturnsTrueForSuccessfulLogin() throws Exception {
+        CrowdClient client = mock(CrowdClient.class);
+        User user = mock(User.class);
+        CrowdAuthenticator authenticator = new CrowdAuthenticator(client);
+        Authenticator.Context context = new Authenticator.Context("user1", "secret", mock(HttpServletRequest.class));
 
-    when(client.authenticateUser(eq("user1"), eq("secret"))).thenReturn(user);
-    assertThat(authenticator.authenticate("user1", "secret"), is(true));
+        when(client.authenticateUser(eq("user1"), eq("secret"))).thenReturn(user);
+        assertThat(authenticator.doAuthenticate(context), is(true));
 
-    when(client.authenticateUser(anyString(), anyString()))
-      .thenThrow(new UserNotFoundException(""));
-    assertThat(authenticator.authenticate("user2", "secret"), is(false));
-  }
+        context = new Authenticator.Context("user1", "secret", mock(HttpServletRequest.class));
+        when(client.authenticateUser(anyString(), anyString()))
+                .thenThrow(new UserNotFoundException(""));
+        assertThat(authenticator.doAuthenticate(context), is(false));
+    }
 
-  @Test
-  public void authenticatorReturnsFalseForInvalidPassword() throws Exception {
-    CrowdClient client = mock(CrowdClient.class);
-    CrowdAuthenticator authenticator = new CrowdAuthenticator(client);
+    @Test
+    public void authenticatorReturnsFalseForInvalidPassword() throws Exception {
+        CrowdClient client = mock(CrowdClient.class);
+        CrowdAuthenticator authenticator = new CrowdAuthenticator(client);
+        Authenticator.Context context = new Authenticator.Context("user1", "secret", mock(HttpServletRequest.class));
 
-    when(client.authenticateUser(anyString(), anyString())).thenThrow(
-      new InvalidAuthenticationException(""));
-    assertThat(authenticator.authenticate("user1", "secret"), is(false));
-  }
+        when(client.authenticateUser(anyString(), anyString())).thenThrow(
+                new InvalidAuthenticationException(""));
+        assertThat(authenticator.doAuthenticate(context), is(false));
+    }
 }

@@ -17,57 +17,59 @@
  * License along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02
  */
-
 package org.sonar.plugins.crowd;
 
+import com.atlassian.crowd.embedded.api.User;
 import com.atlassian.crowd.exception.*;
 import com.atlassian.crowd.service.client.CrowdClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.sonar.api.security.Authenticator;
 import org.sonar.api.security.LoginPasswordAuthenticator;
+
+import javax.annotation.Nonnull;
 
 /**
  * @author Evgeny Mandrikov
  */
-public class CrowdAuthenticator implements LoginPasswordAuthenticator {
+public class CrowdAuthenticator extends Authenticator {
 
-  private static final Logger LOG = LoggerFactory.getLogger(CrowdAuthenticator.class);
+    private static final Logger LOG = LoggerFactory.getLogger(CrowdAuthenticator.class);
 
-  private final CrowdClient client;
+    private final CrowdClient client;
 
-  public CrowdAuthenticator(CrowdClient client) {
-    this.client = client;
-  }
-
-  @Override
-  public void init() {
-    // noop
-  }
-
-  @Override
-  public boolean authenticate(String login, String password) {
-    try {
-      client.authenticateUser(login, password);
-      return true;
-    } catch (UserNotFoundException e) {
-      LOG.debug("User {} not found", login);
-      return false;
-    } catch (InactiveAccountException e) {
-      LOG.debug("User {} is not active", login);
-      return false;
-    } catch (ExpiredCredentialException e) {
-      LOG.debug("Credentials of user {} have expired", login);
-      return false;
-    } catch (ApplicationPermissionException e) {
-      LOG.error("The application is not permitted to perform the requested operation"
-        + " on the crowd server", e);
-      return false;
-    } catch (InvalidAuthenticationException e) {
-      LOG.debug("Invalid credentials for user {}", login);
-      return false;
-    } catch (OperationFailedException e) {
-      LOG.error("Unable to authenticate user " + login, e);
-      return false;
+    public CrowdAuthenticator(CrowdClient client) {
+        this.client = client;
     }
-  }
+
+    @Override
+    public boolean doAuthenticate(Context context) {
+        LOG.error("trying to authenticate: {}", context);
+        String username = context.getUsername();
+        try {
+            LOG.error("trying to authenticate: {}", username);
+            User user = client.authenticateUser(username, context.getPassword());
+            LOG.error("user authenticated: {}", user == null ? "user is null" : user.getEmailAddress());
+            return true;
+        } catch (UserNotFoundException e) {
+            LOG.error("User {} not found", username);
+            return false;
+        } catch (InactiveAccountException e) {
+            LOG.error("User {} is not active", username);
+            return false;
+        } catch (ExpiredCredentialException e) {
+            LOG.error("Credentials of user {} have expired", username);
+            return false;
+        } catch (ApplicationPermissionException e) {
+            LOG.error("The application is not permitted to perform the requested operation"
+                    + " on the crowd server", e);
+            return false;
+        } catch (InvalidAuthenticationException e) {
+            LOG.error("Invalid credentials for user {}", username);
+            return false;
+        } catch (OperationFailedException e) {
+            LOG.error("Unable to authenticate user " + username, e);
+            return false;
+        }
+    }
 }
